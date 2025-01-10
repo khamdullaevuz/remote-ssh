@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SSH Terminal</title>
+    <link rel="stylesheet" href="./node_modules/xterm/css/xterm.css" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+      }
+      #terminal {
+        width: 100%;
+        height: 80vh;
+        border: 1px solid #ddd;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SSH Terminal</h1>
+    <form id="connectForm">
+      <input type="text" id="host" placeholder="Host" required />
+      <input type="text" id="username" placeholder="Username" required />
+      <input type="password" id="password" placeholder="Password" required />
+      <button type="submit">Connect</button>
+    </form>
+    <div id="terminal"></div>
+
+    <script src="./node_modules/xterm/lib/xterm.js"></script>
+    <script>
+      const term = new Terminal();
+      const socket = new WebSocket("ws://localhost:8080");
+
+      // Attach terminal to div
+      term.open(document.getElementById("terminal"));
+
+      // Handle WebSocket messages
+      socket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        if (message.type === "data") {
+          term.write(message.payload);
+        } else if (message.type === "status" || message.type === "error") {
+          term.writeln(`\n[${message.type.toUpperCase()}]: ${message.message}`);
+        }
+      };
+
+      // Send input to WebSocket server
+      term.onData((data) => {
+        socket.send(JSON.stringify({ type: "command", payload: data }));
+      });
+
+      // Connect form submission
+      document.getElementById("connectForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const host = document.getElementById("host").value;
+        const username = document.getElementById("username").value;
+        const password = document.getElementById("password").value;
+
+        socket.send(
+          JSON.stringify({ type: "connect", host, username, password })
+        );
+      });
+    </script>
+  </body>
+</html>
